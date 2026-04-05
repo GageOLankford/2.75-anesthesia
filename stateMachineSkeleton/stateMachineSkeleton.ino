@@ -198,7 +198,6 @@ void loop() {
             }
         }
 
-        // Step 4: Perform dispensing once all inputs are valid
         if (dispenseName != "" && dispenseAmount != -1 && dispenseTime != -1 && medNum != -1) {
             Serial.print("Dispensing ");
             Serial.print(dispenseAmount);
@@ -210,10 +209,8 @@ void loop() {
             Serial.print(dispenseTime);
             Serial.println(" seconds.");
 
-            // Call dispense method (non-blocking placeholder)
             medicationObjects[medNum].dispense(dispenseAmount, dispenseTime);
 
-            // Reset flags for next dispense
             medNum = -1;
             dispenseName = "";
             dispenseAmount = -1;
@@ -222,7 +219,6 @@ void loop() {
             sentAmountRequest = false;
             sentTimeRequest = false;
 
-            // Return to awaiting command
             state = AWAITING_COMMAND;
         }
         break;
