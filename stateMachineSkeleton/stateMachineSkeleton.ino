@@ -1,6 +1,6 @@
 void setup() {
   Serial.begin(9600);
-  while (!Serial) {}      // Wait for serial (important on some boards)
+  while (!Serial) {}
   Serial.println("Serial established, starting program");
 }
 class Medication {
