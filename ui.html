@@ -1,0 +1,2091 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=800, initial-scale=1.0">
+  <title>MAS · Modular Anesthesia System</title>
+
+  <style>
+    :root {
+      /* Canvas */
+      --bg: #F2F2F7;
+      --surface: #FFFFFF;
+      --surface-2: #F8F8FC;
+      --glass: rgba(255, 255, 255, 0.82);
+      --border: rgba(0, 0, 0, 0.08);
+      --border-mid: rgba(0, 0, 0, 0.12);
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+      --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+
+      /* Text */
+      --text: #1C1C1E;
+      --text-2: #48484A;
+      --text-3: #6C6C70;
+      --text-4: #8E8E93;
+
+      /* Accent */
+      --accent: #1C1C1E;
+      --accent-blue: #007AFF;
+      --confirm: #34C759;
+      --danger: #FF3B30;
+
+      /* ISO drug colors — unchanged, these are standard */
+      --hyp: #FFB800;
+      --rel: #E8302A;
+      --opi: #2E7DD6;
+      --vas: #8B44BE;
+      --ach: #28B060;
+
+      --font: 'Noto Sans', 'DejaVu Sans', sans-serif;
+      --mono: 'Noto Sans', 'DejaVu Sans', sans-serif;
+      --mono-weight: 300;
+
+      --r-sm: 8px;
+      --r-md: 12px;
+      --r-lg: 16px;
+      --r-xl: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html {
+      width: 800px;
+      height: 480px;
+      overflow: hidden;
+    }
+
+    body {
+      width: 800px;
+      height: 480px;
+      overflow: hidden;
+      position: relative;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 300;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    /* ── SCREEN ── */
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 800px;
+      height: 480px;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    /* ── HEADER ── */
+    .hdr {
+      height: 44px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hdr-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hdr-title {
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--text-2);
+      text-transform: uppercase;
+    }
+
+    .hdr-right {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text-3);
+      letter-spacing: 0.03em;
+    }
+
+    .hdr-right b {
+      color: var(--text-2);
+      font-weight: 500;
+    }
+
+    /* status pill */
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: rgba(52, 199, 89, 0.1);
+      border: 1px solid rgba(52, 199, 89, 0.2);
+    }
+
+    .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--confirm);
+      box-shadow: 0 0 4px var(--confirm);
+      animation: blink 2.5s ease infinite;
+    }
+
+    .dot.running {
+      background: var(--accent-blue);
+      box-shadow: 0 0 4px var(--accent-blue);
+      animation-duration: 1.4s;
+    }
+
+    .pill-lbl {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--confirm);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    .pill-lbl.running {
+      color: var(--accent-blue);
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0.3
+      }
+    }
+
+    .body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ══════════════════════════════
+   BOOT
+══════════════════════════════ */
+    #screen-boot {
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      background: var(--bg);
+    }
+
+    .boot-system {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.22em;
+      color: var(--text-4);
+      text-transform: uppercase;
+    }
+
+    .boot-name {
+      font-family: var(--font);
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .boot-name span {
+      font-weight: 600;
+    }
+
+    .boot-track {
+      width: 200px;
+      height: 1px;
+      background: var(--border-mid);
+      border-radius: 1px;
+      overflow: hidden;
+    }
+
+    .boot-fill {
+      height: 100%;
+      width: 0;
+      background: var(--text);
+      animation: bfill 2.4s cubic-bezier(.4, 0, .2, 1) forwards;
+    }
+
+    @keyframes bfill {
+      0% {
+        width: 0
+      }
+
+      65% {
+        width: 78%
+      }
+
+      88% {
+        width: 94%
+      }
+
+      100% {
+        width: 100%
+      }
+    }
+
+    .boot-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-4);
+      letter-spacing: 0.06em;
+    }
+
+    /* ══════════════════════════════
+   PATIENT SELECT
+══════════════════════════════ */
+    .pt-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .pt-card {
+      background: var(--surface);
+      border-radius: var(--r-lg);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      padding: 18px 16px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: box-shadow 0.18s, transform 0.12s, border-color 0.18s;
+    }
+
+    .pt-card:hover {
+      box-shadow: var(--shadow-md);
+      border-color: var(--border-mid);
+    }
+
+    .pt-card:active {
+      transform: scale(0.985);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .pt-card-label {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      color: var(--text-3);
+      text-transform: uppercase;
+    }
+
+    .pt-card-data {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 400;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .pt-card-data small {
+      font-size: 13px;
+      color: var(--text-3);
+      font-weight: 400;
+      margin-left: 1px;
+    }
+
+    .pt-card-new {
+      align-items: center;
+      justify-content: center;
+      border-style: dashed;
+      border-color: var(--border-mid);
+      background: var(--surface-2);
+    }
+
+    .pt-card-plus {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 1px solid var(--border-mid);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: var(--text-3);
+    }
+
+    .pt-card-new-lbl {
+      font-size: 13px;
+      color: var(--text-3);
+      font-weight: 500;
+    }
+
+    /* ══════════════════════════════
+   PATIENT ENTRY
+══════════════════════════════ */
+    .entry-hint {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-3);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .field-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .field-grp {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field-lbl {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      color: var(--text-3);
+      text-transform: uppercase;
+    }
+
+    .field-box {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 64px;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.18s, box-shadow 0.18s;
+      position: relative;
+    }
+
+    .field-box:hover {
+      border-color: var(--border-mid);
+    }
+
+    .field-box.focused {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12), var(--shadow-sm);
+    }
+
+    .field-v {
+      font-family: var(--mono);
+      font-size: 30px;
+      font-weight: 400;
+      color: var(--text);
+      flex: 1;
+      line-height: 1;
+    }
+
+    .field-v.ph {
+      color: var(--text-4);
+      font-size: 20px;
+      font-weight: 300;
+    }
+
+    .field-u {
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--text-3);
+      align-self: flex-end;
+      margin-bottom: 2px;
+    }
+
+    .field-enc-badge {
+      position: absolute;
+      top: 7px;
+      right: 10px;
+      font-family: var(--mono);
+      font-size: 8px;
+      font-weight: 500;
+      color: var(--accent-blue);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      opacity: 0;
+      transition: opacity 0.18s;
+    }
+
+    .field-box.focused .field-enc-badge {
+      opacity: 1;
+    }
+
+    /* ══════════════════════════════
+   DRUG SELECT
+══════════════════════════════ */
+    .drug-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 10px 12px;
+      gap: 4px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .drug-search {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 8px 12px;
+      height: 34px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-4);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .search-icon {
+      font-size: 12px;
+    }
+
+    .drug-section-lbl {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      color: var(--text-3);
+      text-transform: uppercase;
+      padding: 8px 4px 4px;
+    }
+
+    .drug-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.1s, border-color 0.1s;
+    }
+
+    .drug-row:hover {
+      background: var(--surface-2);
+    }
+
+    .drug-row.sel {
+      background: var(--surface);
+      border-color: var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .drug-sw {
+      width: 4px;
+      height: 34px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .drug-sw.hash {
+      background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255, 255, 255, 0.6) 2px, rgba(255, 255, 255, 0.6) 4px);
+      /* base color comes from inline style, hash lines overlay it */
+    }
+
+    .drug-info {
+      flex: 1;
+    }
+
+    .drug-n {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .drug-cl {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-3);
+      letter-spacing: 0.06em;
+      margin-top: 1px;
+    }
+
+    .drug-chk {
+      width: 18px;
+      height: 18px;
+      border: 1.5px solid var(--border-mid);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .drug-row.sel .drug-chk {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    /* selected sidebar */
+    .sel-panel {
+      width: 188px;
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      gap: 6px;
+      background: var(--surface-2);
+    }
+
+    .sel-lbl {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      color: var(--text-3);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .sel-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: var(--r-sm);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .chip-n {
+      font-size: 12px;
+      font-weight: 500;
+      flex: 1;
+      color: var(--text);
+    }
+
+    .chip-x {
+      color: var(--text-4);
+      font-size: 16px;
+      cursor: pointer;
+      line-height: 1;
+      transition: color 0.12s;
+    }
+
+    .chip-x:hover {
+      color: var(--danger);
+    }
+
+    /* ══════════════════════════════
+   BUTTONS
+══════════════════════════════ */
+    .btn {
+      padding: 9px 18px;
+      border-radius: var(--r-sm);
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-2);
+      box-shadow: var(--shadow-sm);
+      transition: opacity 0.12s, box-shadow 0.12s, transform 0.1s;
+      text-align: center;
+      letter-spacing: -0.01em;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+      opacity: 0.85;
+    }
+
+    .btn-primary {
+      background: var(--text);
+      color: white;
+      border-color: var(--text);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-primary:active {
+      opacity: 0.88;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+      color: var(--text-3);
+    }
+
+    .btn-ghost:hover {
+      color: var(--text-2);
+    }
+
+    .btn-danger-ghost {
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+      color: var(--danger);
+    }
+
+    /* ══════════════════════════════
+   ACTION BAR
+══════════════════════════════ */
+    .abar {
+      height: 52px;
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 10px;
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+    }
+
+    .sp {
+      flex: 1;
+    }
+
+    /* ══════════════════════════════
+   DOSE COLUMNS
+══════════════════════════════ */
+    .dcols {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: row;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    .dcol {
+      display: flex;
+      flex-direction: column;
+      min-width: 190px;
+      width: 190px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .dcol:last-child {
+      border-right: none;
+    }
+
+    .dcol-hdr {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .dcol-name {
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+    }
+
+    .dcol-conc {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-3);
+      margin-top: 1px;
+    }
+
+    .cbar {
+      height: 2px;
+      border-radius: 1px;
+      margin-top: 6px;
+      opacity: 0.7;
+    }
+
+    .dcol-body {
+      flex: 1;
+      min-height: 0;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+
+    /* dose field */
+    .dose-box {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+
+    .dose-box:hover {
+      border-color: var(--border-mid);
+    }
+
+    .dose-box.focused {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1), var(--shadow-sm);
+    }
+
+    .dose-box-lbl {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      color: var(--text-3);
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .dose-enc-tag {
+      color: var(--accent-blue);
+      opacity: 0;
+      transition: opacity 0.18s;
+    }
+
+    .dose-box.focused .dose-enc-tag {
+      opacity: 1;
+    }
+
+    .dose-num {
+      font-family: var(--mono);
+      font-size: 24px;
+      font-weight: 400;
+      color: var(--text);
+      line-height: 1.1;
+    }
+
+    .dose-u {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-3);
+      margin-left: 3px;
+    }
+
+    /* bolus */
+    .bolus-sec {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 10px;
+    }
+
+    .bolus-lbl {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      color: var(--text-3);
+      text-transform: uppercase;
+    }
+
+    .bolus-btns {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .bol-btn {
+      padding: 5px 9px;
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 400;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-2);
+      box-shadow: var(--shadow-sm);
+      transition: background 0.1s, transform 0.1s;
+    }
+
+    .bol-btn:active {
+      transform: scale(0.93);
+    }
+
+    .bol-btn.cust {
+      color: var(--text-3);
+      border-style: dashed;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    /* ══════════════════════════════
+   ACTIVE SCREEN
+══════════════════════════════ */
+    .acols {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: row;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    .acol {
+      min-width: 190px;
+      width: 190px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .acol:last-child {
+      border-right: none;
+    }
+
+    .acol-hdr {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+
+    .acol-rate {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-3);
+    }
+
+    .acol-rate b {
+      font-size: 16px;
+      font-weight: 400;
+      color: var(--text);
+    }
+
+    .acol-body {
+      flex: 1;
+      min-height: 0;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+
+    .running-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: rgba(0, 122, 255, 0.08);
+      border: 1px solid rgba(0, 122, 255, 0.15);
+      font-family: var(--mono);
+      font-size: 8px;
+      font-weight: 500;
+      color: var(--accent-blue);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      align-self: flex-start;
+    }
+
+    /* ══════════════════════════════
+   MODALS
+══════════════════════════════ */
+    .overlay {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 800px;
+      height: 480px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .overlay.on {
+      display: flex;
+      animation: fadein 0.18s ease;
+    }
+
+    @keyframes fadein {
+      from {
+        opacity: 0
+      }
+
+      to {
+        opacity: 1
+      }
+    }
+
+    .modal {
+      background: var(--glass);
+      backdrop-filter: blur(24px) saturate(200%);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: var(--r-xl);
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      animation: popIn 0.22s cubic-bezier(.34, 1.56, .64, 1);
+    }
+
+    @keyframes popIn {
+      from {
+        opacity: 0;
+        transform: scale(0.92)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    .modal-confirm {
+      width: 300px;
+    }
+
+    .modal-ttl {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .modal-body {
+      font-size: 13px;
+      color: var(--text-2);
+      line-height: 1.65;
+      white-space: pre-line;
+    }
+
+    .modal-acts {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* bolus modal */
+    #modal-bolus {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 800px;
+      height: 480px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    #modal-bolus.on {
+      display: flex;
+      animation: fadein 0.18s ease;
+    }
+
+    .bol-modal {
+      background: var(--glass);
+      backdrop-filter: blur(24px) saturate(200%);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: var(--r-xl);
+      padding: 24px;
+      width: 248px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation: popIn 0.22s cubic-bezier(.34, 1.56, .64, 1);
+    }
+
+    .bol-drug-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .bol-drug-sub {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-3);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 1px;
+    }
+
+    .bol-val-big {
+      font-family: var(--mono);
+      font-size: 56px;
+      font-weight: 300;
+      color: var(--text);
+      text-align: center;
+      line-height: 1;
+    }
+
+    .bol-unit-lbl {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-3);
+      text-align: center;
+      margin-top: -6px;
+    }
+
+    .bol-arrows {
+      display: flex;
+      gap: 8px;
+    }
+
+    .bol-arr {
+      flex: 1;
+      height: 40px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      font-size: 16px;
+      color: var(--text-3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-sm);
+      transition: background 0.1s, transform 0.08s;
+    }
+
+    .bol-arr:active {
+      background: var(--text);
+      color: white;
+      transform: scale(0.94);
+    }
+
+    .sex-btn {
+      flex: 1;
+      height: 44px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--r-md);
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+
+    .sex-btn:hover {
+      border-color: var(--border-mid);
+      color: var(--text);
+    }
+
+    .sex-btn.selected {
+      border-color: var(--accent-blue);
+      background: rgba(0, 122, 255, 0.06);
+      color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1), var(--shadow-sm);
+    }
+
+    /* per-drug stop */
+    .stop-drug-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: var(--r-sm);
+      border: 1px solid rgba(255, 59, 48, 0.2);
+      background: rgba(255, 59, 48, 0.05);
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 500;
+      color: var(--danger);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      margin-top: auto;
+      transition: background 0.12s, border-color 0.12s;
+    }
+
+    .stop-drug-btn:hover {
+      background: rgba(255, 59, 48, 0.1);
+      border-color: rgba(255, 59, 48, 0.35);
+    }
+
+    .stop-drug-btn:active {
+      opacity: 0.7;
+    }
+
+    /* tappable rate display on active screen */
+    .rate-tap {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: var(--r-sm);
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.18s, box-shadow 0.18s;
+      margin-top: 4px;
+    }
+
+    .rate-tap:hover {
+      border-color: var(--border-mid);
+    }
+
+    .rate-tap.focused {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1), var(--shadow-sm);
+    }
+
+    .rate-tap-lbl {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      color: var(--text-3);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .rate-tap-num {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 400;
+      color: var(--text);
+    }
+
+    .rate-tap-unit {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-3);
+    }
+
+    .rate-enc-tag {
+      font-family: var(--mono);
+      font-size: 7px;
+      color: var(--accent-blue);
+      margin-left: auto;
+      opacity: 0;
+      transition: opacity 0.18s;
+    }
+
+    .rate-tap.focused .rate-enc-tag {
+      opacity: 1;
+    }
+
+    /* bolus confirm modal */
+    #modal-bolus-confirm {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 800px;
+      height: 480px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      z-index: 110;
+    }
+
+    #modal-bolus-confirm.on {
+      display: flex;
+      animation: fadein 0.18s ease;
+    }
+
+    .bol-confirm-modal {
+      background: var(--glass);
+      backdrop-filter: blur(24px) saturate(200%);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: var(--r-xl);
+      padding: 24px;
+      width: 300px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      animation: popIn 0.22s cubic-bezier(.34, 1.56, .64, 1);
+    }
+
+    .bol-confirm-drug {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .bol-confirm-amount {
+      font-family: var(--mono);
+      font-size: 42px;
+      font-weight: 300;
+      color: var(--text);
+      text-align: center;
+      line-height: 1;
+    }
+
+    .bol-confirm-unit {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-3);
+      text-align: center;
+      margin-top: -4px;
+    }
+
+    .bol-confirm-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-3);
+      text-align: center;
+      letter-spacing: 0.06em;
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--surface-2);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-mid);
+      border-radius: 4px;
+      border: 1px solid var(--surface-2);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-4);
+    }
+
+    /* layout helpers */
+    .section-lbl {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      color: var(--text-3);
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ═══════════════ BOOT ═══════════════ -->
+  <div id="screen-boot" class="screen active">
+    <div class="boot-system">Modular Anesthesia System</div>
+    <div class="boot-name">MAS <span>One</span></div>
+    <div class="boot-track">
+      <div class="boot-fill"></div>
+    </div>
+    <div class="boot-sub" id="boot-msg">Initializing . . .</div>
+  </div>
+
+  <!-- ═══════════════ PATIENT SELECT ═══════════════ -->
+  <div id="screen-pt-select" class="screen">
+    <div class="hdr">
+      <div class="hdr-left">
+        <div class="hdr-title">Patient</div>
+      </div>
+
+    </div>
+    <div class="body" style="flex-direction:column; padding:18px 20px; gap:12px; justify-content:center;">
+      <div class="section-lbl">Select record</div>
+      <div class="pt-cards">
+        <div class="pt-card" onclick="selectPatient('prior')">
+          <div class="pt-card-label">Continue prior</div>
+          <div class="pt-card-data">M<br>72 <small>kg</small><br>172 <small>cm</small><br>65 <small>yr</small></div>
+        </div>
+        <div class="pt-card" onclick="selectPatient('ehr')">
+          <div class="pt-card-label">Load from EHR</div>
+          <div class="pt-card-data">M<br>72 <small>kg</small><br>172 <small>cm</small><br>65 <small>yr</small></div>
+        </div>
+        <div class="pt-card pt-card-new" onclick="selectPatient('manual')">
+          <div class="pt-card-plus">+</div>
+          <div class="pt-card-new-lbl">New patient</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ PATIENT ENTRY ═══════════════ -->
+  <div id="screen-pt-entry" class="screen">
+    <div class="hdr">
+      <div class="hdr-title">New Patient</div>
+
+    </div>
+    <div class="body" style="flex-direction:column; padding:16px 20px; gap:14px; justify-content:center;">
+      <div class="entry-hint">Tap a field · rotate encoder to adjust · press to confirm &amp; advance</div>
+      <div class="field-row">
+        <div class="field-grp">
+          <div class="field-lbl">Weight</div>
+          <div class="field-box" id="fb-weight" onclick="focusPtField('weight')">
+            <div class="field-v ph" id="fv-weight">—</div>
+            <div class="field-u">kg</div>
+
+          </div>
+        </div>
+        <div class="field-grp">
+          <div class="field-lbl">Height</div>
+          <div class="field-box" id="fb-height" onclick="focusPtField('height')">
+            <div class="field-v ph" id="fv-height">—</div>
+            <div class="field-u">cm</div>
+
+          </div>
+        </div>
+        <div class="field-grp">
+          <div class="field-lbl">Age</div>
+          <div class="field-box" id="fb-age" onclick="focusPtField('age')">
+            <div class="field-v ph" id="fv-age">—</div>
+            <div class="field-u">yr</div>
+
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <div class="field-grp" style="max-width:200px;">
+          <div class="field-lbl">Sex</div>
+          <div style="display:flex;gap:8px;">
+            <div class="sex-btn" id="sex-M" onclick="selectSex('M')">M</div>
+            <div class="sex-btn" id="sex-F" onclick="selectSex('F')">F</div>
+          </div>
+        </div>
+      </div>
+      <div id="pt-summary-row" style="display:none;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text-3);">
+          Confirm &nbsp;<span id="pt-summary" style="color:var(--text);font-weight:500;"></span>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:2px;">
+        <div class="btn btn-ghost" onclick="goTo('screen-pt-select')">Back</div>
+        <div class="sp"></div>
+        <div class="btn btn-primary" id="btn-pt-ok" style="opacity:0.3;pointer-events:none;" onclick="confirmPatient()">
+          Continue</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ DRUG SELECT ═══════════════ -->
+  <div id="screen-drug-select" class="screen">
+    <div class="hdr">
+      <div class="hdr-title">Infusions</div>
+      <div class="hdr-right" id="hdr1"></div>
+    </div>
+    <div class="body">
+      <div class="drug-panel">
+        <div id="drug-list"></div>
+      </div>
+      <div class="sel-panel">
+        <div class="sel-lbl">Selected</div>
+        <div id="sel-chips"></div>
+        <div class="sp"></div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div class="btn btn-ghost" style="font-size:11px;" onclick="goTo('screen-pt-select')">Back</div>
+          <div class="btn btn-primary" id="btn-drug-ok" style="opacity:0.3;pointer-events:none;"
+            onclick="showDrugConfirm()">Confirm</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ DOSE SETTING ═══════════════ -->
+  <div id="screen-dose" class="screen">
+    <div class="hdr">
+      <div class="hdr-title">Dose Setup</div>
+      <div class="hdr-right" id="hdr2"></div>
+    </div>
+    <div class="body" style="flex-direction:column;">
+      <div class="dcols" id="dose-cols"></div>
+      <div class="abar">
+        <div class="btn btn-ghost" onclick="goTo('screen-drug-select')">Back</div>
+        <div class="sp"></div>
+        <div class="btn btn-primary" onclick="showStartConfirm()">Start Infusion</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ ACTIVE ═══════════════ -->
+  <div id="screen-active" class="screen">
+    <div class="hdr">
+      <div class="hdr-left">
+        <div class="hdr-title">Infusion Active</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="hdr-right" id="hdr3"></div>
+        <div class="status-pill">
+          <div class="dot running"></div>
+          <div class="pill-lbl running">Running</div>
+        </div>
+      </div>
+    </div>
+    <div class="body" style="flex-direction:column;">
+      <div class="acols" id="active-cols"></div>
+      <div class="abar">
+        <div class="btn btn-danger-ghost" onclick="showStopConfirm()">Stop All</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════ BOLUS MODAL ═══════════════ -->
+  <div id="modal-bolus">
+    <div class="bol-modal">
+      <div>
+        <div class="bol-drug-name" id="bol-name"></div>
+        <div class="bol-drug-sub">Custom Bolus</div>
+      </div>
+      <div class="bol-val-big" id="bol-val">0</div>
+      <div class="bol-unit-lbl" id="bol-unit"></div>
+
+      <div style="display:flex;gap:8px;">
+        <div class="btn btn-ghost" style="flex:1;" onclick="closeBolus()">Cancel</div>
+        <div class="btn btn-primary" style="flex:1;" id="bol-action-btn" onclick="confirmBolusPush()">Deliver</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ BOLUS CONFIRM MODAL ═══════════════ -->
+  <div id="modal-bolus-confirm">
+    <div class="bol-confirm-modal">
+      <div class="bol-confirm-drug">
+        <div id="bcm-dot" style="width:8px;height:8px;border-radius:50%;flex-shrink:0;"></div>
+        <span id="bcm-drug"></span>
+      </div>
+      <div class="bol-confirm-amount" id="bcm-amount"></div>
+      <div class="bol-confirm-unit" id="bcm-unit"></div>
+      <div class="bol-confirm-sub">Deliver bolus now?</div>
+      <div style="display:flex;gap:8px;">
+        <div class="btn btn-ghost" style="flex:1;" onclick="closeBolusCfm()">Cancel</div>
+        <div class="btn btn-primary" style="flex:1;" id="bcm-ok">Deliver</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ BOLUS SUCCESS MODAL ═══════════════ -->
+  <div id="modal-bolus-success"
+    style="display:none;position:absolute;top:0;left:0;width:800px;height:480px;background:rgba(0,0,0,0.25);backdrop-filter:blur(4px);align-items:center;justify-content:center;z-index:120;">
+    <div
+      style="background:var(--glass);backdrop-filter:blur(24px) saturate(200%);border:1px solid rgba(255,255,255,0.7);border-radius:var(--r-xl);padding:24px;width:280px;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:12px;align-items:center;animation:popIn 0.22s cubic-bezier(.34,1.56,.64,1);">
+      <div style="text-align:center;">
+        <div
+          style="font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;justify-content:center;gap:7px;">
+          <div id="bsm-dot" style="width:8px;height:8px;border-radius:50%;flex-shrink:0;"></div>
+          <span id="bsm-drug"></span>
+        </div>
+        <div style="font-family:var(--mono);font-size:36px;font-weight:300;color:var(--text);margin-top:4px;"
+          id="bsm-amount"></div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text-3);margin-top:-2px;" id="bsm-unit"></div>
+        <div
+          style="font-family:var(--mono);font-size:10px;color:var(--confirm);letter-spacing:0.08em;text-transform:uppercase;margin-top:8px;">
+          Bolus delivered</div>
+      </div>
+      <div class="btn btn-ghost" style="width:100%;font-size:11px;" onclick="closeBolusScs()">Dismiss</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ CONFIRM MODAL ═══════════════ -->
+  <div class="overlay" id="modal-confirm">
+    <div class="modal modal-confirm">
+      <div class="modal-ttl" id="conf-ttl"></div>
+      <div class="modal-body" id="conf-body"></div>
+      <div class="modal-acts">
+        <div class="btn btn-ghost" style="flex:1;" onclick="closeConfirm()">Cancel</div>
+        <div class="btn btn-primary" style="flex:1;" id="conf-ok">Confirm</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── DRUG DB ───────────────────────────────────────────
+    const DRUGS = [
+      { id: 'propofol', name: 'Propofol', cls: 'Hypnotic', color: '#FFB800', conc: '10 mg/mL', unit: 'mcg/kg/min', def: 100, bolus: [50, 100, 150], step: 1, min: 0, max: 300, hash: false },
+      { id: 'etomidate', name: 'Etomidate', cls: 'Hypnotic', color: '#FFB800', conc: '2 mg/mL', unit: 'mcg/kg/min', def: null, bolus: [20, 40, 60], step: 1, min: 0, max: 200, hash: false },
+      { id: 'ketamine', name: 'Ketamine', cls: 'Hypnotic', color: '#FFB800', conc: '10 mg/mL', unit: 'mcg/kg/min', def: null, bolus: [20, 40, 60], step: 1, min: 0, max: 200, hash: false },
+      { id: 'rocuronium', name: 'Rocuronium', cls: 'Relaxant', color: '#E8302A', conc: '5 mg/mL', unit: 'mcg/kg/min', def: 0.4, bolus: [20, 40, 60], step: 0.1, min: 0, max: 10, hash: false },
+      { id: 'vecuronium', name: 'Vecuronium', cls: 'Relaxant', color: '#E8302A', conc: '1 mg/mL', unit: 'mcg/kg/min', def: null, bolus: [20, 40, 60], step: 0.1, min: 0, max: 5, hash: false },
+      { id: 'succinylcholine', name: 'Succinylcholine', cls: 'Relaxant', color: '#E8302A', conc: '20 mg/mL', unit: 'mg/kg', def: null, bolus: [1, 1.5, 2], step: 0.1, min: 0, max: 4, hash: false },
+      { id: 'fentanyl', name: 'Fentanyl', cls: 'Opioid', color: '#2E7DD6', conc: '50 mcg/mL', unit: 'mcg/kg/hr', def: null, bolus: [25, 50, 100], step: 1, min: 0, max: 400, hash: false },
+      { id: 'morphine', name: 'Morphine', cls: 'Opioid', color: '#2E7DD6', conc: '1 mg/mL', unit: 'mg/hr', def: null, bolus: [2, 4, 8], step: 0.5, min: 0, max: 30, hash: false },
+      { id: 'naloxone', name: 'Naloxone', cls: 'Opioid Reversal', color: '#2E7DD6', conc: '0.4 mg/mL', unit: 'mcg/kg', def: null, bolus: [40, 80, 160], step: 1, min: 0, max: 400, hash: true },
+      { id: 'phenylephrine', name: 'Phenylephrine', cls: 'Vasopressor', color: '#8B44BE', conc: '80 mcg/mL', unit: 'mcg/min', def: 20, bolus: [40, 80, 160], step: 1, min: 0, max: 400, hash: false },
+      { id: 'norepinephrine', name: 'Norepinephrine', cls: 'Vasopressor', color: '#8B44BE', conc: '4 mg/250mL', unit: 'mcg/min', def: null, bolus: [4, 8, 12], step: 1, min: 0, max: 50, hash: false },
+      { id: 'vasopressin', name: 'Vasopressin', cls: 'Vasopressor', color: '#8B44BE', conc: '20 U/mL', unit: 'U/min', def: null, bolus: [0.01, 0.03], step: 0.01, min: 0, max: 0.1, hash: false },
+    ];
+
+    const PT_FIELDS = [
+      { key: 'weight', lbl: 'Weight', unit: 'kg', min: 1, max: 250, step: 1, def: 70 },
+      { key: 'height', lbl: 'Height', unit: 'cm', min: 50, max: 230, step: 1, def: 170 },
+      { key: 'age', lbl: 'Age', unit: 'yr', min: 0, max: 120, step: 1, def: 50 },
+    ];
+
+    // ─── STATE ────────────────────────────────────────────
+    const S = { patient: { weight: null, height: null, age: null, sex: null }, drugs: [], doses: {}, paused: {} };
+
+    // ─── ENCODER ENGINE ───────────────────────────────────
+    const E = { on: false, val: 0, min: 0, max: 100, step: 1, unit: '', lbl: '', onChange: null, onConfirm: null };
+
+    function encActivate(cfg) {
+      Object.assign(E, { on: true }, cfg);
+      if (E.val === null || E.val === undefined) E.val = E.min;
+      if (!E.step || E.step <= 0) E.step = 1;
+    }
+    function encDeactivate() {
+      E.on = false;
+    }
+    function encTurn(dir) {
+      if (!E.on) return;
+      const step = E.step || 1;
+      const dp = step < 1 ? (String(step).split('.')[1]?.length ?? 2) : 0;
+      E.val = Math.min(E.max, Math.max(E.min, parseFloat((E.val + dir * step).toFixed(dp))));
+      if (E.onChange) E.onChange(E.val);
+    }
+    function encPress() { if (E.on && E.onConfirm) E.onConfirm(E.val); }
+
+    document.addEventListener('keydown', e => {
+      if (document.getElementById('modal-bolus-success').style.display === 'flex') {
+        if (e.key === 'Escape' || e.key === 'Enter') closeBolusScs();
+        e.preventDefault(); return;
+      }
+      if (document.getElementById('modal-bolus-confirm').classList.contains('on')) {
+        if (e.key === 'Enter') document.getElementById('bcm-ok').click();
+        if (e.key === 'Escape') closeBolusCfm();
+        e.preventDefault(); return;
+      }
+      if (document.getElementById('modal-bolus').classList.contains('on')) {
+        if (e.key === 'ArrowUp') bolTurn(1);
+        if (e.key === 'ArrowDown') bolTurn(-1);
+        if (e.key === 'Enter') { document.getElementById('bcm-ok'); confirmBolusPush(); }
+        if (e.key === 'Escape') closeBolus();
+        e.preventDefault(); return;
+      }
+      if (document.getElementById('modal-confirm').classList.contains('on')) {
+        if (e.key === 'Enter') document.getElementById('conf-ok').click();
+        if (e.key === 'Escape') closeConfirm();
+        e.preventDefault(); return;
+      }
+      if (e.key === 'ArrowUp') { encTurn(1); e.preventDefault(); }
+      if (e.key === 'ArrowDown') { encTurn(-1); e.preventDefault(); }
+      if (e.key === 'Enter') { encPress(); e.preventDefault(); }
+    });
+
+    // ─── NAVIGATION ───────────────────────────────────────
+    function goTo(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      encDeactivate();
+      document.querySelectorAll('.field-box').forEach(el => el.classList.remove('focused'));
+      if (id !== 'screen-dose') {
+        document.querySelectorAll('.dose-box').forEach(el => el.classList.remove('focused'));
+      }
+      if (id !== 'screen-active') {
+        document.querySelectorAll('.rate-tap').forEach(el => el.classList.remove('focused'));
+      }
+    }
+
+    // ─── BOOT ─────────────────────────────────────────────
+    const bootMsgs = ['Initializing . . .', 'Checking modules . . .', 'Loading drug library . . .', 'System ready'];
+    let bi = 0; const bel = document.getElementById('boot-msg');
+    const biv = setInterval(() => {
+      bi++; if (bi < bootMsgs.length) bel.textContent = bootMsgs[bi];
+      else { clearInterval(biv); setTimeout(() => goTo('screen-pt-select'), 300); }
+    }, 560);
+
+    // ─── PATIENT SELECT ───────────────────────────────────
+    function selectPatient(mode) {
+      if (mode === 'manual') { goTo('screen-pt-entry'); return; }
+      S.patient = { weight: 72, height: 172, age: 65, sex: 'M' };
+      syncHdrs(); buildDrugList(); goTo('screen-drug-select');
+    }
+
+    // ─── PATIENT ENTRY ────────────────────────────────────
+    let ptIdx = 0;
+    function focusPtField(key) { ptIdx = PT_FIELDS.findIndex(f => f.key === key); activatePtField(ptIdx); }
+    function activatePtField(idx) {
+      PT_FIELDS.forEach(f => document.getElementById('fb-' + f.key)?.classList.remove('focused'));
+      if (idx >= PT_FIELDS.length) { encDeactivate(); checkPtReady(); return; }
+      const f = PT_FIELDS[idx];
+      document.getElementById('fb-' + f.key).classList.add('focused');
+      if (S.patient[f.key] === null) { S.patient[f.key] = f.def; setFV(f.key, f.def); }
+      encActivate({
+        lbl: f.lbl, unit: f.unit, val: S.patient[f.key], min: f.min, max: f.max, step: f.step,
+        onChange: v => { S.patient[f.key] = v; setFV(f.key, v); },
+        onConfirm: v => {
+          S.patient[f.key] = v; setFV(f.key, v);
+          document.getElementById('fb-' + f.key).classList.remove('focused');
+          ptIdx++; activatePtField(ptIdx);
+        }
+      });
+    }
+    function setFV(key, v) { const el = document.getElementById('fv-' + key); el.textContent = v; el.classList.remove('ph'); }
+    function selectSex(val) {
+      S.patient.sex = val;
+      document.getElementById('sex-M').classList.toggle('selected', val === 'M');
+      document.getElementById('sex-F').classList.toggle('selected', val === 'F');
+      checkPtReady();
+    }
+
+    function checkPtReady() {
+      const { weight, height, age, sex } = S.patient; const ok = weight && height && age && sex;
+      const btn = document.getElementById('btn-pt-ok');
+      btn.style.opacity = ok ? '1' : '0.3'; btn.style.pointerEvents = ok ? 'auto' : 'none';
+      if (ok) {
+        document.getElementById('pt-summary-row').style.display = 'block';
+        document.getElementById('pt-summary').textContent = `${sex} · ${weight} kg · ${height} cm · ${age} yr`;
+      }
+    }
+    function confirmPatient() { syncHdrs(); buildDrugList(); goTo('screen-drug-select'); }
+    function syncHdrs() {
+      const { weight, height, age, sex } = S.patient;
+      const t = `${sex}  ·  ${weight} kg  ·  ${height} cm  ·  ${age} yr`;
+      ['hdr1', 'hdr2', 'hdr3'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = `<b>${t}</b>`; });
+    }
+
+    // ─── DRUG SELECT ──────────────────────────────────────
+    const CLASSES = ['Hypnotic', 'Relaxant', 'Vasopressor', 'Opioid', 'Opioid Reversal'];
+    function buildDrugList() {
+      const list = document.getElementById('drug-list'); list.innerHTML = '';
+      CLASSES.forEach(cls => {
+        const group = DRUGS.filter(d => d.cls === cls); if (!group.length) return;
+        const lbl = document.createElement('div'); lbl.className = 'drug-section-lbl'; lbl.textContent = cls;
+        list.appendChild(lbl);
+        group.forEach(d => {
+          const row = document.createElement('div'); row.className = 'drug-row'; row.id = 'dr-' + d.id;
+          row.onclick = () => toggleDrug(d.id);
+          row.innerHTML = `
+        <div class="drug-sw${d.hash ? ' hash' : ''}" style="background-color:${d.color};"></div>
+        <div class="drug-info"><div class="drug-n">${d.name}</div><div class="drug-cl">${d.conc}</div></div>
+        <div class="drug-chk" id="dc-${d.id}"></div>`;
+          list.appendChild(row);
+        });
+      });
+      renderChips();
+    }
+    function toggleDrug(id) {
+      const i = S.drugs.indexOf(id); if (i === -1) S.drugs.push(id); else S.drugs.splice(i, 1);
+      renderDrugUI();
+    }
+    function renderDrugUI() {
+      DRUGS.forEach(d => {
+        const row = document.getElementById('dr-' + d.id); const chk = document.getElementById('dc-' + d.id); if (!row) return;
+        const sel = S.drugs.includes(d.id); row.classList.toggle('sel', sel); chk.textContent = sel ? '✓' : '';
+      });
+      renderChips();
+      const btn = document.getElementById('btn-drug-ok'); const ok = S.drugs.length > 0;
+      btn.style.opacity = ok ? '1' : '0.3'; btn.style.pointerEvents = ok ? 'auto' : 'none';
+    }
+    function renderChips() {
+      const chips = document.getElementById('sel-chips'); if (!chips) return; chips.innerHTML = '';
+      if (S.drugs.length === 0) {
+        chips.innerHTML = `<div style="font-family:var(--mono);font-size:9px;color:var(--text-4);padding:4px 2px;">None selected</div>`;
+        return;
+      }
+      S.drugs.forEach(id => {
+        const d = DRUGS.find(x => x.id === id); if (!d) return;
+        const c = document.createElement('div'); c.className = 'sel-chip';
+        c.style.cursor = 'pointer';
+        c.onclick = () => toggleDrug(id);
+        c.innerHTML = `
+      <div class="chip-dot" style="background:${d.color};"></div>
+      <div class="chip-n">${d.name}</div>
+      <div class="chip-x">×</div>`;
+        chips.appendChild(c);
+      });
+    }
+    function showDrugConfirm() {
+      const names = S.drugs.map(id => DRUGS.find(d => d.id === id).name).join(', ');
+      showConfirm('Confirm Selection', `Proceed with:\n${names}`, () => { buildDoseColumns(); goTo('screen-dose'); });
+    }
+
+    // ─── DOSE SCREEN ──────────────────────────────────────
+    function buildDoseColumns() {
+      const cols = document.getElementById('dose-cols'); cols.innerHTML = '';
+      S.drugs.forEach(id => {
+        const d = DRUGS.find(x => x.id === id);
+        if (S.doses[id] === undefined) S.doses[id] = d.def !== null ? d.def : d.min;
+        const cbarStyle = d.hash
+          ? `background:${d.color}; background-image:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(255,255,255,0.5) 2px,rgba(255,255,255,0.5) 4px);`
+          : `background:${d.color};`;
+        const col = document.createElement('div'); col.className = 'dcol'; col.id = 'dc2-' + id;
+        col.innerHTML = `
+      <div class="dcol-hdr">
+        <div class="dcol-name"><div style="width:7px;height:7px;border-radius:50%;background:${d.color};flex-shrink:0;"></div>${d.name}</div>
+        <div class="dcol-conc">${d.conc}</div>
+        <div class="cbar" style="${cbarStyle}"></div>
+      </div>
+      <div class="dcol-body">
+        <div class="dose-box" id="db-${id}" onclick="focusDose('${id}')">
+          <div class="dose-box-lbl">Infusion Rate </div>
+          <div class="dose-num" id="dv-${id}">${S.doses[id]}<span class="dose-u">${d.unit}</span></div>
+        </div>
+        <div class="bolus-sec">
+          <div class="bolus-lbl">Bolus Presets · ${d.unit.split('/')[0]}</div>
+          <div class="bolus-btns" id="dose-bolus-btns-${id}">${doseBolusBtns(id)}</div>
+        </div>
+      </div>`;
+        cols.appendChild(col);
+      });
+      if (S.drugs.length > 0) setTimeout(() => focusDose(S.drugs[0]), 80);
+    }
+
+    function doseBolusBtns(drugId) {
+      const d = DRUGS.find(x => x.id === drugId); if (!d) return '';
+      // display-only preset chips + an Add Custom button
+      return d.bolus.map(b =>
+        `<div class="bol-btn" style="cursor:default;opacity:0.6;">${b}</div>`
+      ).join('') +
+        `<div class="bol-btn cust" onclick="openCustomBolus('${drugId}','dose')">+ Add</div>`;
+    }
+    function focusDose(drugId) {
+      S.drugs.forEach(id => document.getElementById('db-' + id)?.classList.remove('focused'));
+      document.getElementById('db-' + drugId)?.classList.add('focused');
+      const d = DRUGS.find(x => x.id === drugId);
+      const currentVal = S.doses[drugId] ?? d.min;
+      encActivate({
+        lbl: d.name, unit: d.unit, val: currentVal, min: d.min, max: d.max, step: d.step,
+        onChange: v => { S.doses[drugId] = v; refreshDV(drugId); },
+        onConfirm: v => {
+          S.doses[drugId] = v; refreshDV(drugId);
+          document.getElementById('db-' + drugId)?.classList.remove('focused');
+          const idx = S.drugs.indexOf(drugId); const next = S.drugs[idx + 1];
+          if (next) focusDose(next); else encDeactivate();
+        }
+      });
+    }
+    function refreshDV(id) {
+      const d = DRUGS.find(x => x.id === id); const el = document.getElementById('dv-' + id); if (!el) return;
+      el.innerHTML = `${S.doses[id]}<span class="dose-u">${d.unit}</span>`;
+    }
+
+    // ─── BOLUS CONFIRM MODAL ──────────────────────────────
+    let bcmDrugId = null, bcmAmount = null, bcmFromModal = false;
+
+    function showBolusConfirm(drugId, amount, fromModal = false) {
+      bcmDrugId = drugId; bcmAmount = amount; bcmFromModal = fromModal;
+      const d = DRUGS.find(x => x.id === drugId); if (!d) return;
+      document.getElementById('bcm-dot').style.background = d.color;
+      document.getElementById('bcm-drug').textContent = d.name;
+      document.getElementById('bcm-amount').textContent = amount;
+      document.getElementById('bcm-unit').textContent = d.unit.split('/')[0];
+      document.getElementById('bcm-ok').onclick = () => { closeBolusCfm(); executeBolus(drugId, amount); if (bcmFromModal) closeBolus(); };
+      document.getElementById('modal-bolus-confirm').classList.add('on');
+    }
+    function closeBolusCfm() { document.getElementById('modal-bolus-confirm').classList.remove('on'); }
+
+    function executeBolus(drugId, amount) {
+      // hook: emit bolus signal to control layer here
+      const d = DRUGS.find(x => x.id === drugId); if (!d) return;
+      // visual flash
+      const rateEl = document.getElementById('rate-tap-' + drugId) || document.getElementById('db-' + drugId);
+      if (rateEl) {
+        rateEl.style.borderColor = d.color;
+        rateEl.style.background = d.color + '18';
+        setTimeout(() => { rateEl.style.borderColor = ''; rateEl.style.background = ''; }, 800);
+      }
+      // show success confirmation
+      showBolusSuccess(drugId, amount);
+    }
+
+    function showBolusSuccess(drugId, amount) {
+      const d = DRUGS.find(x => x.id === drugId); if (!d) return;
+      document.getElementById('bsm-dot').style.background = d.color;
+      document.getElementById('bsm-drug').textContent = d.name;
+      document.getElementById('bsm-amount').textContent = amount;
+      document.getElementById('bsm-unit').textContent = d.unit.split('/')[0];
+      const el = document.getElementById('modal-bolus-success');
+      el.style.display = 'flex';
+    }
+    function closeBolusScs() { document.getElementById('modal-bolus-success').style.display = 'none'; }
+
+    // ─── BOLUS MODAL (custom amount) ─────────────────────
+    let bolDrugId = null, bolCurVal = 0, bolContext = 'active'; // context: 'dose' | 'active'
+
+    function openCustomBolus(drugId, context = 'active') {
+      bolDrugId = drugId; bolContext = context;
+      const d = DRUGS.find(x => x.id === drugId);
+      bolCurVal = d.bolus[0] ?? 1;
+      document.getElementById('bol-name').textContent = d.name;
+      document.getElementById('bol-unit').textContent = d.unit.split('/')[0];
+      document.getElementById('bol-val').textContent = bolCurVal;
+      // swap button label based on context
+      const actionBtn = document.getElementById('bol-action-btn');
+      if (context === 'dose') {
+        actionBtn.textContent = 'Add Preset';
+        actionBtn.onclick = addCustomPreset;
+      } else {
+        actionBtn.textContent = 'Deliver';
+        actionBtn.onclick = confirmBolusPush;
+      }
+      document.getElementById('modal-bolus').classList.add('on');
+    }
+
+    function addCustomPreset() {
+      const d = DRUGS.find(x => x.id === bolDrugId); if (!d) return;
+      if (!d.bolus.includes(bolCurVal)) {
+        d.bolus.push(bolCurVal);
+        d.bolus.sort((a, b) => a - b);
+      }
+      const savedId = bolDrugId;
+      closeBolus();
+      // rebuild the bolus buttons in the dose column
+      const btnsEl = document.getElementById('dose-bolus-btns-' + savedId);
+      if (btnsEl) btnsEl.innerHTML = doseBolusBtns(savedId);
+    }
+
+    function fireBolus(drugId, amount) {
+      showBolusConfirm(drugId, amount, false);
+    }
+
+    function bolTurn(dir) {
+      const d = DRUGS.find(x => x.id === bolDrugId); if (!d) return;
+      bolCurVal = Math.max(0, bolCurVal + dir);
+      document.getElementById('bol-val').textContent = bolCurVal;
+    }
+    function confirmBolusPush() {
+      const savedId = bolDrugId;
+      const savedVal = bolCurVal;
+      closeBolus();
+      showBolusConfirm(savedId, savedVal, false);
+    }
+    function closeBolus() { document.getElementById('modal-bolus').classList.remove('on'); bolDrugId = null; }
+
+    // ─── START / ACTIVE ───────────────────────────────────
+    function showStartConfirm() {
+      const lines = S.drugs.map(id => { const d = DRUGS.find(x => x.id === id); return `${d.name}: ${S.doses[id]} ${d.unit}`; }).join('\n');
+      showConfirm('Start Infusion?', lines, () => { buildActive(); goTo('screen-active'); });
+    }
+
+    function stopDrug(drugId) {
+      const d = DRUGS.find(x => x.id === drugId);
+      const isPaused = S.paused[drugId];
+      if (isPaused) {
+        // resume
+        showConfirm(`Resume ${d.name}?`, `Restart ${d.name} at ${S.doses[drugId]} ${d.unit}?`, () => {
+          S.paused[drugId] = false;
+          refreshActiveCol(drugId);
+        });
+      } else {
+        // pause
+        showConfirm(`Pause ${d.name}?`, `This will pause the ${d.name} infusion.\nIt can be resumed at any time.`, () => {
+          S.paused[drugId] = true;
+          refreshActiveCol(drugId);
+        });
+      }
+    }
+
+    function refreshActiveCol(drugId) {
+      const isPaused = S.paused[drugId];
+      const badge = document.getElementById('badge-' + drugId);
+      const stopBtn = document.getElementById('stopbtn-' + drugId);
+      const rateTap = document.getElementById('rate-tap-' + drugId);
+      const col = document.getElementById('acol-' + drugId);
+
+      // grey out whole column
+      if (col) {
+        col.style.opacity = '1';
+        col.style.background = isPaused ? '#C8C8D0' : '';
+        const hdr = col.querySelector('.acol-hdr');
+        const rate = col.querySelector('.rate-tap');
+        const bols = col.querySelector('.bolus-sec');
+        if (hdr) hdr.style.opacity = isPaused ? '0.3' : '';
+        if (rate) rate.style.opacity = isPaused ? '0.3' : '';
+        if (bols) bols.style.opacity = isPaused ? '0.3' : '';
+      }
+      if (badge) {
+        badge.innerHTML = isPaused
+          ? `<div style="width:5px;height:5px;border-radius:50%;background:#FF9500;"></div><span style="color:#FF9500;">Paused</span>`
+          : `<div class="dot running" style="box-shadow:none;"></div>Running`;
+        badge.style.background = isPaused ? 'rgba(255,149,0,0.08)' : 'rgba(0,122,255,0.08)';
+        badge.style.borderColor = isPaused ? 'rgba(255,149,0,0.2)' : 'rgba(0,122,255,0.15)';
+      }
+      if (stopBtn) {
+        stopBtn.textContent = isPaused ? '▶ Resume' : '■  Pause';
+        stopBtn.style.color = isPaused ? 'var(--confirm)' : 'var(--danger)';
+        stopBtn.style.borderColor = isPaused ? 'rgba(52,199,89,0.25)' : 'rgba(255,59,48,0.2)';
+        stopBtn.style.background = isPaused ? 'rgba(52,199,89,0.06)' : 'rgba(255,59,48,0.05)';
+        stopBtn.style.opacity = '1';
+      }
+      if (rateTap) {
+        rateTap.style.opacity = isPaused ? '0.45' : '';
+        rateTap.style.pointerEvents = isPaused ? 'none' : '';
+      }
+    }
+
+    function focusActiveRate(drugId) {
+      // unfocus all
+      S.drugs.forEach(id => {
+        document.getElementById('rate-tap-' + id)?.classList.remove('focused');
+      });
+      document.getElementById('rate-tap-' + drugId)?.classList.add('focused');
+      const d = DRUGS.find(x => x.id === drugId);
+      encActivate({
+        lbl: d.name, unit: d.unit,
+        val: Math.round(S.doses[drugId]),
+        min: d.min, max: d.max,
+        onChange: v => {
+          S.doses[drugId] = v;
+          const el = document.getElementById('rate-num-' + drugId);
+          if (el) el.textContent = v;
+          // hook: send live rate update to control layer
+        },
+        onConfirm: v => {
+          S.doses[drugId] = v;
+          document.getElementById('rate-tap-' + drugId)?.classList.remove('focused');
+          const idx = S.drugs.indexOf(drugId); const next = S.drugs[idx + 1];
+          if (next) focusActiveRate(next); else encDeactivate();
+        }
+      });
+    }
+
+    function buildActive() {
+      const cols = document.getElementById('active-cols'); cols.innerHTML = '';
+      S.drugs.forEach(id => {
+        const d = DRUGS.find(x => x.id === id);
+        const isPaused = S.paused[id] || false;
+        const bHTML = d.bolus.map(b => `<div class="bol-btn" onclick="fireBolus('${id}',${b})">${b}</div>`).join('')
+          + `<div class="bol-btn cust" onclick="openCustomBolus('${id}','active')">Custom</div>`;
+        // hashed color bar for reversal drugs
+        const cbarStyle = d.hash
+          ? `background:${d.color}; background-image:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(255,255,255,0.5) 2px,rgba(255,255,255,0.5) 4px);`
+          : `background:${d.color};`;
+        const col = document.createElement('div'); col.className = 'acol'; col.id = 'acol-' + id;
+        col.innerHTML = `
+      <div class="acol-hdr">
+        <div class="dcol-name">
+          <div style="width:7px;height:7px;border-radius:50%;background:${d.color};flex-shrink:0;"></div>
+          ${d.name}
+        </div>
+        <div class="cbar" style="${cbarStyle}"></div>
+        <div class="running-badge" id="badge-${id}" style="margin-top:4px;${isPaused ? 'background:rgba(255,149,0,0.08);border-color:rgba(255,149,0,0.2);' : ''}">
+          ${isPaused
+            ? `<div style="width:5px;height:5px;border-radius:50%;background:#FF9500;"></div><span style="color:#FF9500;">Paused</span>`
+            : `<div class="dot running" style="box-shadow:none;"></div>Running`}
+        </div>
+      </div>
+      <div class="acol-body">
+        <div>
+          <div class="rate-tap-lbl">Infusion Rate</div>
+          <div class="rate-tap" id="rate-tap-${id}" onclick="focusActiveRate('${id}')"
+            style="${isPaused ? 'opacity:0.45;pointer-events:none;' : ''}">
+            <div class="rate-tap-num" id="rate-num-${id}">${S.doses[id]}</div>
+            <div class="rate-tap-unit">${d.unit}</div>
+            
+          </div>
+        </div>
+        <div class="bolus-sec">
+          <div class="bolus-lbl">Bolus · ${d.unit.split('/')[0]}</div>
+          <div class="bolus-btns">${bHTML}</div>
+        </div>
+        <div class="stop-drug-btn" id="stopbtn-${id}" onclick="stopDrug('${id}')"
+          style="${isPaused ? 'color:var(--confirm);border-color:rgba(52,199,89,0.25);background:rgba(52,199,89,0.06);' : ''}">
+          ${isPaused ? '▶ Resume' : '■  Pause'}
+        </div>
+      </div>`;
+        cols.appendChild(col);
+        if (S.paused[id]) setTimeout(() => refreshActiveCol(id), 0);
+      });
+      if (S.drugs.length > 0) setTimeout(() => focusActiveRate(S.drugs[0]), 80);
+    }
+
+    function showStopConfirm() {
+      showConfirm('Stop All Infusions?', 'This will halt all running infusions immediately.', () => goTo('screen-pt-select'));
+    }
+
+    // ─── CONFIRM MODAL ────────────────────────────────────
+    let confCb = null;
+    function showConfirm(ttl, body, onOk) {
+      confCb = onOk; document.getElementById('conf-ttl').textContent = ttl; document.getElementById('conf-body').textContent = body;
+      document.getElementById('conf-ok').onclick = () => { closeConfirm(); if (confCb) confCb(); };
+      document.getElementById('modal-confirm').classList.add('on');
+    }
+    function closeConfirm() { document.getElementById('modal-confirm').classList.remove('on'); }
+  </script>
+</body>
+
+</html>
+<script>
+  const ws = new WebSocket('ws://localhost:8765');
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+
+    if (msg.type === 'encoder') {
+      if (document.getElementById('modal-bolus').classList.contains('on')) {
+        bolTurn(msg.dir);
+      } else {
+        encTurn(msg.dir);
+      }
+    }
+
+    if (msg.type === 'press') {
+      if (document.getElementById('modal-bolus-success').style.display === 'flex') {
+        closeBolusScs();
+      } else if (document.getElementById('modal-bolus-confirm').classList.contains('on')) {
+        document.getElementById('bcm-ok').click();
+      } else if (document.getElementById('modal-bolus').classList.contains('on')) {
+        confirmBolusPush();
+      } else if (document.getElementById('modal-confirm').classList.contains('on')) {
+        document.getElementById('conf-ok').click();
+      } else {
+        encPress();
+      }
+    }
+  };
+</script>
